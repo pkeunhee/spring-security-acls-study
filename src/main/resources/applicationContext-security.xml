@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+             http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+             http://www.springframework.org/schema/util
+             http://www.springframework.org/schema/util/spring-util-3.1.xsd
+             http://www.springframework.org/schema/security
+             http://www.springframework.org/schema/security/spring-security-3.1.xsd
+             http://www.springframework.org/schema/aop
+             http://www.springframework.org/schema/aop/spring-aop-3.1.xsd">
+
+	<security:authentication-manager id="authenticationManager">
+		<security:authentication-provider>
+			<security:password-encoder hash="plaintext" />
+			<security:user-service>
+				<security:user name="consumer" password="consumer"
+					authorities="ROLE_CONSUMER" />
+				<security:user name="consumer2" password="consumer2"
+					authorities="ROLE_CONSUMER" />
+				<security:user name="admin" password="admin"
+					authorities="ROLE_ADMIN" />
+				<security:user name="empl1" password="pass1"
+					authorities="ROLE_EMPLOYEE" />
+				<security:user name="empl2" password="pass2"
+					authorities="ROLE_EMPLOYEE" />
+				<security:user name="empl3" password="pass3"
+					authorities="ROLE_EMPLOYEE" />
+				<security:user name="empl4" password="pass4"
+					authorities="ROLE_EMPLOYEE" />
+				<security:user name="manager1" password="pass1"
+					authorities="ROLE_MANAGER" />
+				<security:user name="manager2" password="pass2"
+					authorities="ROLE_MANAGER" />
+				<security:user name="testUser" password=""
+					authorities="" />
+			</security:user-service>
+		</security:authentication-provider>
+	</security:authentication-manager>
+
+	<aop:config>
+		<aop:pointcut id="allServiceMethods" expression='execution(* springacltutorial.services.*Services.*(..))' />
+		<aop:pointcut id="reportServiceMethods" expression='execution(* springacltutorial.services.ReportServices.*(..))' />
+		<aop:pointcut id="recordServiceMethods" expression='execution(* springacltutorial.services.RecordServices.*(..))' />
+		<aop:advisor advice-ref="securedInterceptor" pointcut-ref="reportServiceMethods" order="1"/>
+		<aop:advisor advice-ref="prePostInterceptor" pointcut-ref="reportServiceMethods" order="2"/>
+		<aop:advisor advice-ref="consumerAccessInterceptor" pointcut-ref="recordServiceMethods" order="1" />
+		<aop:advisor advice-ref="userAccessInterceptor" pointcut-ref="recordServiceMethods" order="2" />
+		<aop:advisor advice-ref="userPrePostInterceptor" pointcut-ref="recordServiceMethods" order="3"/>
+	</aop:config>
+
+	<bean id="securedInterceptor" class="springacltutorial.infrastructure.MyMethodSecurityInterceptor">
+		<property name="securityMetadataSource">
+			<bean class="org.springframework.security.access.annotation.SecuredAnnotationSecurityMetadataSource">
+				<constructor-arg>
+					<bean class="org.springframework.security.access.annotation.SecuredAnnotationMetadataExtractor" />
+				</constructor-arg>
+			</bean>
+		</property>
+		<property name="validateConfigAttributes" value="false" />
+		<property name="accessDecisionManager" ref="businessAccessDecisionManager" />
+		<property name="authenticationManager" ref="authenticationManager" />
+		<property name="afterInvocationManager" ref="afterInvocationManager" />
+	</bean>
+
+	<bean id="prePostInterceptor" class="springacltutorial.infrastructure.MyMethodSecurityInterceptor">
+		<property name="securityMetadataSource">
+			<bean class="org.springframework.security.access.prepost.PrePostAnnotationSecurityMetadataSource">
+				<constructor-arg ref="exprBasedAnnotationFactory" />
+			</bean>
+		</property>
+		<property name="validateConfigAttributes" value="false" />
+		<property name="accessDecisionManager" ref="businessAccessDecisionManager" />
+		<property name="authenticationManager" ref="authenticationManager" />
+		<property name="afterInvocationManager" ref="afterInvocationManager" />
+	</bean>
+
+	<!-- Decision manager uses two voters: one is role-based, another is ACL-based -->
+	<bean id="businessAccessDecisionManager" class="org.springframework.security.access.vote.UnanimousBased">
+		<property name="allowIfAllAbstainDecisions" value="true" />
+		<property name="decisionVoters">
+			<list>
+				<bean id="roleVoter" class="org.springframework.security.access.vote.RoleVoter" />
+				<ref local="preAuthorizeVoter" />
+				<ref local="aclReportAcceptVoter" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="exprBasedAnnotationFactory" class="org.springframework.security.access.expression.method.ExpressionBasedAnnotationAttributeFactory">
+		<constructor-arg ref="methodExprHandler"></constructor-arg>
+	</bean>
+
+	<bean id="preAuthorizeVoter" class="org.springframework.security.access.prepost.PreInvocationAuthorizationAdviceVoter">
+		<constructor-arg ref="preInvocationAuthorizationAdvice"/>
+	</bean>
+
+	<bean id="preInvocationAuthorizationAdvice" class="org.springframework.security.access.expression.method.ExpressionBasedPreInvocationAdvice"></bean>
+
+	<bean class="org.springframework.security.access.intercept.AfterInvocationProviderManager" id="afterInvocationManager">
+		<property name="providers">
+			<list>
+				<ref local="postAdviceProvider"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean class="org.springframework.security.access.prepost.PostInvocationAdviceProvider" id="postAdviceProvider">
+		<constructor-arg ref="exprPostInvocationAdvice" />
+	</bean>
+
+	<bean class="org.springframework.security.access.expression.method.ExpressionBasedPostInvocationAdvice" id="exprPostInvocationAdvice">
+		<constructor-arg ref="methodExprHandler" />
+	</bean>
+
+	<!-- An access decision voter that reads ACL_REPORT_ACCEPT configuration settings -->
+	<bean id="aclReportAcceptVoter" class="org.springframework.security.acls.AclEntryVoter">
+		<constructor-arg ref="aclService" />
+		<constructor-arg value="ACL_REPORT_ACCEPT" />
+		<constructor-arg>
+			<list>
+				<util:constant id="acceptPermission" static-field="springacltutorial.infrastructure.ExtendedPermission.ACCEPT" />
+			</list>
+		</constructor-arg>
+		<property name="internalMethod" value="getUser" />
+		<property name="objectIdentityRetrievalStrategy">
+			<bean class="springacltutorial.infrastructure.UserNameRetrievalStrategy" />
+		</property>
+		<!-- this is tricky! We have to use Report here, so that voter find it 
+			in protected method parameters; "internalMethod" will convert it to User -->
+		<property name="processDomainObjectClass" value="springacltutorial.model.Report" />
+	</bean>
+
+	<bean id="aclService" class="springacltutorial.infrastructure.InMemoryAclServiceImpl" />
+
+	<bean class="org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler" id="methodExprHandler">
+		<property name="permissionEvaluator" ref="aclPermissionEvaluator" />
+	</bean>
+
+	<bean class="org.springframework.security.acls.AclPermissionEvaluator" id="aclPermissionEvaluator">
+		<constructor-arg ref="aclService" />
+	</bean>
+
+	<bean id="runAsManager" class="springacltutorial.infrastructure.MyRunAsManagerImpl">
+		<property name="key" value="run_as_password" />
+	</bean>
+
+	<bean id="runAsAuthenticationProvider" class="org.springframework.security.access.intercept.RunAsImplAuthenticationProvider">
+		<property name="key" value="run_as_password" />
+	</bean>
+
+	<!-- USER AUTHORIZATION -->
+	<bean id="aclUserVoter" class="springacltutorial.infrastructure.MethodAclEntryVoter">
+		<constructor-arg ref="aclService" />
+		<constructor-arg value="IS_USER_CAPABLE" />
+		<constructor-arg>
+			<list>
+				<util:constant id="acceptPermission" static-field="org.springframework.security.acls.domain.BasePermission.READ" />
+			</list>
+		</constructor-arg>
+		<property name="objectIdentityRetrievalStrategy">
+			<bean class="springacltutorial.infrastructure.MethodRetrievalStrategy" />
+		</property>
+	</bean>
+
+	<bean id="userAccessDecisionManager" class="org.springframework.security.access.vote.UnanimousBased">
+		<property name="allowIfAllAbstainDecisions" value="true" />
+		<property name="decisionVoters">
+			<list>
+				<ref local="aclUserVoter" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="userAccessInterceptor"
+		class="springacltutorial.infrastructure.MyMethodSecurityInterceptor">
+		<property name="securityMetadataSource">
+			<bean
+				class="org.springframework.security.access.annotation.SecuredAnnotationSecurityMetadataSource">
+				<constructor-arg>
+					<bean class="org.springframework.security.access.annotation.SecuredAnnotationMetadataExtractor" />
+				</constructor-arg>
+			</bean>
+		</property>
+		<property name="validateConfigAttributes" value="false" />
+		<property name="accessDecisionManager" ref="userAccessDecisionManager" />
+		<property name="authenticationManager" ref="authenticationManager" />
+		<property name="runAsManager" ref="runAsManager" />
+	</bean>
+
+	<bean id="userPrePostInterceptor"
+		class="springacltutorial.infrastructure.MyMethodSecurityInterceptor">
+		<property name="securityMetadataSource">
+			<bean
+				class="org.springframework.security.access.prepost.PrePostAnnotationSecurityMetadataSource">
+				<constructor-arg ref="exprBasedAnnotationFactory" />
+			</bean>
+		</property>
+		<property name="validateConfigAttributes" value="false" />
+		<property name="accessDecisionManager" ref="userAccessDecisionManager" />
+		<property name="authenticationManager" ref="authenticationManager" />
+		<property name="afterInvocationManager" ref="afterInvocationManager" />
+		<property name="runAsManager" ref="runAsManager" />
+	</bean>
+	<!-- END OF USER AUTHORIZATION -->
+
+	<!-- CONSUMER AUTHORIZATION -->
+	<bean id="aclConsumerVoter" class="springacltutorial.infrastructure.MethodAclEntryVoter">
+		<constructor-arg ref="aclService" />
+		<constructor-arg value="IS_CONSUMER_CAPABLE" />
+		<constructor-arg>
+			<list>
+				<util:constant id="acceptPermission"
+					static-field="org.springframework.security.acls.domain.BasePermission.READ" />
+			</list>
+		</constructor-arg>
+		<property name="objectIdentityRetrievalStrategy">
+			<bean class="springacltutorial.infrastructure.MethodRetrievalStrategy" />
+		</property>
+	</bean>
+
+	<bean id="consumerAccessDecisionManager" class="org.springframework.security.access.vote.UnanimousBased">
+		<property name="allowIfAllAbstainDecisions" value="true" />
+		<property name="decisionVoters">
+			<list>
+				<ref local="aclConsumerVoter" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="consumerAccessInterceptor"
+		class="springacltutorial.infrastructure.MyMethodSecurityInterceptor">
+		<property name="securityMetadataSource">
+			<bean
+				class="org.springframework.security.access.annotation.SecuredAnnotationSecurityMetadataSource">
+				<constructor-arg>
+					<bean class="org.springframework.security.access.annotation.SecuredAnnotationMetadataExtractor" />
+				</constructor-arg>
+			</bean>
+		</property>
+		<property name="validateConfigAttributes" value="false" />
+		<property name="accessDecisionManager" ref="consumerAccessDecisionManager" />
+		<property name="authenticationManager" ref="authenticationManager" />
+	</bean>
+	<!-- END OF CONSUMER AUTHORIZATION -->
+</beans>
