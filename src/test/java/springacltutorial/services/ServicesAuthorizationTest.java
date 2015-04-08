@@ -48,7 +48,7 @@ public class ServicesAuthorizationTest {
 		// now use user without EMPLOYEE role
 		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("testUser", ""));
 		try {
-			reportServices.addReport("springacltutorial");
+			reportServices.addReport("springacltutorial"); // testUser는 role 이 없기 때문에 addReport 할 권한이 없음
 			fail("should throw AccessDeniedException");
 		} catch (BadCredentialsException e) {
 			return; // ok
@@ -59,7 +59,7 @@ public class ServicesAuthorizationTest {
 	public void testAcceptReport() {
 		// empl1 creates report
 		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("empl1", "pass1"));
-		Report reportEmpl1 = dao.getReportById(reportServices.addReport("springacltutorial")); //report를 생성하고 등록한뒤 ID를 받는다
+		Report reportEmpl1 = dao.getReportById(reportServices.addReport("springacltutorial")); // report를 생성하고 등록한뒤 ID를 받는다
 
 		// empl3 creates report
 		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("empl3", "pass3"));

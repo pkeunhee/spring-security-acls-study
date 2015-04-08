@@ -14,6 +14,7 @@
              http://www.springframework.org/schema/aop
              http://www.springframework.org/schema/aop/spring-aop-3.1.xsd">
 
+	<!-- Authentication Manager -->
 	<security:authentication-manager id="authenticationManager">
 		<security:authentication-provider>
 			<security:password-encoder hash="plaintext" />
@@ -46,8 +47,10 @@
 		<aop:pointcut id="allServiceMethods" expression='execution(* springacltutorial.services.*Services.*(..))' />
 		<aop:pointcut id="reportServiceMethods" expression='execution(* springacltutorial.services.ReportServices.*(..))' />
 		<aop:pointcut id="recordServiceMethods" expression='execution(* springacltutorial.services.RecordServices.*(..))' />
+		
 		<aop:advisor advice-ref="securedInterceptor" pointcut-ref="reportServiceMethods" order="1"/>
 		<aop:advisor advice-ref="prePostInterceptor" pointcut-ref="reportServiceMethods" order="2"/>
+		
 		<aop:advisor advice-ref="consumerAccessInterceptor" pointcut-ref="recordServiceMethods" order="1" />
 		<aop:advisor advice-ref="userAccessInterceptor" pointcut-ref="recordServiceMethods" order="2" />
 		<aop:advisor advice-ref="userPrePostInterceptor" pointcut-ref="recordServiceMethods" order="3"/>

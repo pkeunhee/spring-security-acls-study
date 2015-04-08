@@ -13,10 +13,8 @@ import org.springframework.security.acls.model.Sid;
 import org.springframework.security.acls.model.UnloadedSidException;
 
 /**
- * Very simple implementation of Acl interface, based on
- * org.springframework.security.acls.domain.AclImpl source (mainly the isGranted
- * method code). This implementation neither use owner concept nor parent
- * concept.
+ * Very simple implementation of Acl interface, based on org.springframework.security.acls.domain.AclImpl source (mainly the isGranted method code). This implementation neither use owner concept nor
+ * parent concept.
  */
 public class SimpleAclImpl implements Acl {
 	private static final long serialVersionUID = 1L;
@@ -56,7 +54,6 @@ public class SimpleAclImpl implements Acl {
 
 	@Override
 	public boolean isGranted(List<Permission> permission, List<Sid> sids, boolean administrativeMode) throws NotFoundException, UnloadedSidException {
-
 		AccessControlEntry firstRejection = null;
 
 		for (int i = 0; i < permission.size(); i++) {

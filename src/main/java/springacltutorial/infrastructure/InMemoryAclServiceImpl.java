@@ -8,6 +8,8 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 
 import org.aopalliance.intercept.MethodInvocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.acls.domain.AccessControlEntryImpl;
 import org.springframework.security.acls.domain.BasePermission;
 import org.springframework.security.acls.domain.GrantedAuthoritySid;
@@ -27,12 +29,13 @@ import springacltutorial.model.Report;
 import springacltutorial.model.User;
 
 /**
- * The simplest possible implementation of AclService interface. Uses in-memory
- * collection of ACLs, providing fast and easy access to them.
+ * The simplest possible implementation of AclService interface. Uses in-memory collection of ACLs, providing fast and easy access to them.
  * 
  */
 @Service
 public class InMemoryAclServiceImpl implements AclService {
+	static Logger logger = LoggerFactory.getLogger(InMemoryAclServiceImpl.class);
+
 	Map<ObjectIdentity, Acl> acls = new HashMap<ObjectIdentity, Acl>();
 
 	@PostConstruct
@@ -51,13 +54,13 @@ public class InMemoryAclServiceImpl implements AclService {
 
 		ObjectIdentity classRecordServices = new ObjectIdentityImpl(Class.class, "class springacltutorial.services.RecordServices");
 		ObjectIdentity methodCreateRecord = new ObjectIdentityImpl(MethodInvocation.class,
-			"public java.lang.Long springacltutorial.services.RecordServices.createRecord(springacltutorial.model.User,java.lang.String)");
+				"public java.lang.Long springacltutorial.services.RecordServices.createRecord(springacltutorial.model.User,java.lang.String)");
 		ObjectIdentity methodGetRecord = new ObjectIdentityImpl(MethodInvocation.class,
-			"public springacltutorial.model.Record springacltutorial.services.RecordServices.getRecord(springacltutorial.model.User,java.lang.Long)");
+				"public springacltutorial.model.Record springacltutorial.services.RecordServices.getRecord(springacltutorial.model.User,java.lang.Long)");
 		ObjectIdentity methodGetRecords = new ObjectIdentityImpl(MethodInvocation.class,
-			"public java.util.Collection springacltutorial.services.RecordServices.getRecords(springacltutorial.model.User)");
+				"public java.util.Collection springacltutorial.services.RecordServices.getRecords(springacltutorial.model.User)");
 
-		//Object에 대해 entry list 를 정의
+		// Object에 대해 entry list 를 정의
 		Acl acl1 = new SimpleAclImpl(user1, new ArrayList<AccessControlEntry>());
 		acl1.getEntries().add(new AccessControlEntryImpl("ace1", acl1, new PrincipalSid("manager1"), ExtendedPermission.ACCEPT, true, true, true));
 		acls.put(acl1.getObjectIdentity(), acl1);
@@ -86,6 +89,7 @@ public class InMemoryAclServiceImpl implements AclService {
 		acl12.getEntries().add(new AccessControlEntryImpl("ace12", acl12, new GrantedAuthoritySid("ROLE_ADMIN"), BasePermission.READ, true, true, true));
 		acls.put(acl12.getObjectIdentity(), acl12);
 
+		// 하나의 ACL 에 여러 entry 등록
 		Acl acl7 = new SimpleAclImpl(methodCreateRecord, new ArrayList<AccessControlEntry>(), acl12);
 		acl7.getEntries().add(new AccessControlEntryImpl("ace7", acl7, new GrantedAuthoritySid("ROLE_MANAGER"), BasePermission.READ, true, true, true));
 		acl7.getEntries().add(new AccessControlEntryImpl("ace7", acl7, new PrincipalSid("consumer"), BasePermission.READ, true, true, true));
@@ -120,11 +124,10 @@ public class InMemoryAclServiceImpl implements AclService {
 	@SuppressWarnings("serial")
 	@Override
 	public Acl readAclById(final ObjectIdentity object, List<Sid> sids) throws NotFoundException {
-		Map<ObjectIdentity, Acl> map = readAclsById(new ArrayList<ObjectIdentity>() {
-			{
-				add(object);
-			}
-		}, sids);
+		List<ObjectIdentity> objectIdList = new ArrayList<ObjectIdentity>();
+		objectIdList.add(object);
+		Map<ObjectIdentity, Acl> map = readAclsById(objectIdList, sids);
+
 		Assert.isTrue(map.containsKey(object), "There should have been an Acl entry for ObjectIdentity " + object);
 
 		return map.get(object);
@@ -141,6 +144,8 @@ public class InMemoryAclServiceImpl implements AclService {
 
 	@Override
 	public Map<ObjectIdentity, Acl> readAclsById(List<ObjectIdentity> objects, List<Sid> sids) throws NotFoundException {
+		logger.debug("readAclsById(List<ObjectIdentity> objects, List<Sid> sids) 메소드 수행");
+
 		Map<ObjectIdentity, Acl> result = new HashMap<ObjectIdentity, Acl>();
 		for (ObjectIdentity object : objects) {
 			if (acls.containsKey(object)) {
